@@ -110,10 +110,26 @@ def get_config():
     config.wandb.name = None
     config.wandb.tags = ()
 
+    # # ---- saving ----
+    # config.saving = ml_collections.ConfigDict()
+    # config.saving.checkpoint_dir = "checkpoints"
+    # config.saving.save_every_steps = 5000
+    # config.saving.figs_dir = "figs"
+
+    # return config
+
     # ---- saving ----
     config.saving = ml_collections.ConfigDict()
-    config.saving.checkpoint_dir = "checkpoints"
+    
+    # 💡 [수정] 구글 드라이브 내 특정 프로젝트 폴더 지정
+    # 개별 Case 구분을 위해 프로젝트 루트 경로를 정의합니다.
+    config.saving.base_dir = "/content/drive/MyDrive/bfs-komega-pinn"
+    
+    # 각 실험 결과물(체크포인트 가중치, 시각화 그림)이 들어갈 상세 경로 설정
+    config.saving.checkpoint_dir = f"{config.saving.base_dir}/checkpoints"
+    config.saving.figs_dir = f"{config.saving.base_dir}/figs"
     config.saving.save_every_steps = 5000
-    config.saving.figs_dir = "figs"
 
     return config
+
+
