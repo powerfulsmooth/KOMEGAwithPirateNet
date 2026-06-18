@@ -1,0 +1,17 @@
+# Core JAX stack
+# On Colab GPU:  pip install -U "jax[cuda12]"
+# Locally (CPU): pip install -U "jax[cpu]"
+jax>=0.4.20
+flax>=0.8.0
+optax>=0.1.9
+ml_collections>=0.1.1
+
+# Logging / data / plotting
+wandb>=0.16.0
+numpy>=1.24
+scipy>=1.10
+matplotlib>=3.7
+
+# jaxpi is NOT on PyPI. Install separately and PIN a commit, e.g.:
+#   pip install "git+https://github.com/PredictiveIntelligenceLab/jaxpi.git@<COMMIT_SHA>"
+# (provides archs.Mlp / archs.PirateNet, models.ForwardBVP, grad_norm/ntk weighting)
