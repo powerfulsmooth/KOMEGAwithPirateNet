@@ -129,6 +129,7 @@ def get_config():
     # 각 실험 결과물(체크포인트 가중치, 시각화 그림)이 들어갈 상세 경로 설정
     config.saving.checkpoint_dir = f"{config.saving.base_dir}/checkpoints"
     config.saving.figs_dir = f"{config.saving.base_dir}/figs"
+    config.saving.logs_dir = f"{config.saving.base_dir}/logs"   # 학습 로그 CSV 저장 위치
     config.saving.save_every_steps = 5000
     config.saving.contour_every_steps = 500   # 학습 중 |U| 등고선 스냅샷 주기(0이면 끔)
 

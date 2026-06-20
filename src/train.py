@@ -119,6 +119,7 @@ Run (from repo root, after downloading DNS data):
     python -m src.train --config=configs/pirate.py
 """
 import os
+import csv
 import pickle
 import time
 
@@ -222,6 +223,29 @@ def save_progress_ckpt(cfg, params, arch, seed, step):
         return None
 
 
+def append_history_csv(cfg, arch, seed, rec, write_header):
+    """학습 로그(rec)를 구글 드라이브 CSV에 누적 저장 (wandb 수동 export 불필요).
+
+    write_header=True(=run 시작, it==0)면 새 파일로 헤더부터 덮어쓰고, 이후엔 한 줄씩 append.
+    실패해도 학습은 계속되도록 예외를 삼킨다."""
+    try:
+        d = cfg.saving.get("logs_dir", None) or os.path.join(cfg.saving.figs_dir, "logs")
+        os.makedirs(d, exist_ok=True)
+        path = os.path.join(d, f"{arch}_seed{seed}_history.csv")
+        fields = (["step", "loss"]
+                  + [f"loss/{k}" for k in LOSS_KEYS]
+                  + [f"w/{k}" for k in LOSS_KEYS])
+        with open(path, "w" if write_header else "a", newline="") as fh:
+            w = csv.DictWriter(fh, fieldnames=fields, extrasaction="ignore")
+            if write_header:
+                w.writeheader()
+            w.writerow(rec)
+        return path
+    except Exception as e:
+        print(f"  [log] step {rec.get('step')} CSV 저장 실패(학습은 계속): {e}")
+        return None
+
+
 def train_one_seed(cfg, seed, points, log_fn=None):
     key = jax.random.PRNGKey(int(seed))
     net = networks.build_network(cfg)
@@ -258,6 +282,7 @@ def train_one_seed(cfg, seed, points, log_fn=None):
             rec.update({f"loss/{k}": float(terms[k]) for k in LOSS_KEYS})
             rec.update({f"w/{k}": float(weights[k]) for k in LOSS_KEYS})
             history.append(rec)
+            append_history_csv(cfg, arch, seed, rec, write_header=(it == 0))
             img_path = None
             if contour_every and it % contour_every == 0:
                 img_path = save_contour_png(cfg, net, params, arch, seed, it)
