@@ -144,28 +144,32 @@ def make_predict_fn(cfg, params):
 
 def _arch_cfg(cfg, arch):
     c = cfg.copy_and_resolve_references()
-    if arch == "pirate":
-        import ml_collections
-        c.arch.arch_name = "PirateNet"
-        c.arch.num_layers = 3
-        c.arch.hidden_dim = 256
-        c.arch.fourier_emb = ml_collections.ConfigDict({"embed_scale": 1.0, "embed_dim": 256})
-        c.arch.nonlinearity = 0.0
-    else:
-        c.arch.arch_name = "Mlp"
-        c.arch.num_layers = 5
-        c.arch.hidden_dim = 128
+    # base.py의 arch 블록에 없는 키(nonlinearity 등)도 추가해야 하므로 잠금 해제
+    with c.unlocked():
+        if arch == "pirate":
+            import ml_collections
+            c.arch.arch_name = "PirateNet"
+            c.arch.num_layers = 3
+            c.arch.hidden_dim = 256
+            c.arch.fourier_emb = ml_collections.ConfigDict({"embed_scale": 1.0, "embed_dim": 256})
+            c.arch.nonlinearity = 0.0
+        else:
+            c.arch.arch_name = "Mlp"
+            c.arch.num_layers = 5
+            c.arch.hidden_dim = 128
     return c
 
 
 def evaluate_arch(cfg, arch, data_pts):
-    c = _arch_cfg(cfg, arch)
     ckpts = sorted(glob.glob(os.path.join(cfg.saving.checkpoint_dir, f"{arch}_seed*.pkl")))
-    
+
     # 💡 [추가] 만약 해당 구조의 체크포인트 파일이 하나도 없으면 에러 방지를 위해 None 반환
+    #   (config를 건드리기 전에 먼저 검사해서, 학습 안 한 구조는 깔끔히 건너뜀)
     if not ckpts:
         print(f"--> [{arch}] 구조의 체크포인트 파일(.pkl)이 존재하지 않아 평가를 건너뜁니다.")
         return None
+
+    c = _arch_cfg(cfg, arch)
 
     obs_xy, obs_uv = [], []
     for key in ("inlet", "outlet", "interior"):
