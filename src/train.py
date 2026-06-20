@@ -155,7 +155,12 @@ def make_optimizer(cfg):
         transition_steps=int(cfg.optim.decay_steps),
         decay_rate=float(cfg.optim.decay_rate),
     )
-    return optax.adam(sched)
+    clip = float(cfg.optim.get("grad_clip_norm", 0.0) or 0.0)
+    chain = [optax.zero_nans()]          # NaN 그래디언트 -> 0 (오염 방어)
+    if clip > 0:
+        chain.append(optax.clip_by_global_norm(clip))   # 거대 그래디언트 캡
+    chain.append(optax.adam(sched))
+    return optax.chain(*chain)
 
 
 def save_contour_png(cfg, net, params, arch, seed, step):
@@ -201,6 +206,22 @@ def save_contour_png(cfg, net, params, arch, seed, step):
         return None
 
 
+def save_progress_ckpt(cfg, params, arch, seed, step):
+    """중간 체크포인트 저장(붕괴 전 좋은 모델 보존용).
+
+    run_comparison의 `{arch}_seed*.pkl` glob에 안 걸리도록 checkpoints/progress/ 하위에 저장."""
+    try:
+        d = os.path.join(cfg.saving.checkpoint_dir, "progress")
+        os.makedirs(d, exist_ok=True)
+        path = os.path.join(d, f"{arch}_seed{seed}_step{step:06d}.pkl")
+        with open(path, "wb") as fh:
+            pickle.dump(jax.device_get(params), fh)
+        return path
+    except Exception as e:
+        print(f"  [ckpt] step {step} 중간 저장 실패(학습은 계속): {e}")
+        return None
+
+
 def train_one_seed(cfg, seed, points, log_fn=None):
     key = jax.random.PRNGKey(int(seed))
     net = networks.build_network(cfg)
@@ -211,6 +232,7 @@ def train_one_seed(cfg, seed, points, log_fn=None):
     weights = {k: jnp.asarray(float(cfg.weighting.init_weights[k])) for k in LOSS_KEYS}
     arch = cfg.wandb.name or cfg.arch.arch_name
     contour_every = int(cfg.saving.get("contour_every_steps", 0) or 0)
+    save_every = int(cfg.saving.get("save_every_steps", 0) or 0)
 
     @jax.jit
     def step(params, opt_state, weights):
@@ -241,6 +263,8 @@ def train_one_seed(cfg, seed, points, log_fn=None):
                 img_path = save_contour_png(cfg, net, params, arch, seed, it)
             if log_fn:
                 log_fn(rec, img_path)
+        if save_every and it > 0 and it % save_every == 0:
+            save_progress_ckpt(cfg, params, arch, seed, it)
     return params, history
 
 

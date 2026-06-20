@@ -69,6 +69,7 @@ def get_config():
     config.optim.decay_rate = 0.9
     config.optim.decay_steps = 2000
     config.optim.grad_accum_steps = 0
+    config.optim.grad_clip_norm = 1.0   # global-norm 그래디언트 클리핑(0이면 끔). 막판 발산 방지 핵심.
     config.optim.lbfgs = ml_collections.ConfigDict({"enabled": True, "steps": 8000})
 
     # ---- training ----
