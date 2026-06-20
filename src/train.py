@@ -139,6 +139,12 @@ try:
 except Exception:
     wandb = None
 
+try:
+    from tqdm import tqdm
+except Exception:
+    def tqdm(x, *a, **k):
+        return x
+
 FLAGS = flags.FLAGS
 config_flags.DEFINE_config_file("config", "configs/mlp.py", "Training config.")
 
@@ -173,8 +179,18 @@ def save_contour_png(cfg, net, params, arch, seed, step):
         os.makedirs(outdir, exist_ok=True)
         fig, ax = plt.subplots(figsize=(9, 2.8))
         pc = ax.contourf(fl["X"], fl["Y"], fl["speed"], levels=30, cmap="viridis")
+        # 속도장 위에 streamline 오버레이 (고체 영역의 NaN은 0으로 대체)
+        U = np.nan_to_num(fl["U"], nan=0.0)
+        V = np.nan_to_num(fl["V"], nan=0.0)
+        try:
+            ax.streamplot(fl["X"], fl["Y"], U, V, density=1.3,
+                          color="white", linewidth=0.6, arrowsize=0.7)
+        except Exception:
+            pass
         ax.set_aspect("equal"); ax.set_xlabel("x/h"); ax.set_ylabel("y/h")
-        ax.set_title(f"{arch} |U|  seed{seed}  step {step}")
+        ax.set_xlim(fl["X"].min(), fl["X"].max())
+        ax.set_ylim(fl["Y"].min(), fl["Y"].max())
+        ax.set_title(f"{arch} |U| + streamlines  seed{seed}  step {step}")
         fig.colorbar(pc, ax=ax, shrink=0.9)
         path = os.path.join(outdir, f"{arch}_seed{seed}_step{step:06d}.png")
         fig.savefig(path, dpi=130, bbox_inches="tight")
@@ -207,7 +223,10 @@ def train_one_seed(cfg, seed, points, log_fn=None):
     history = []
     scheme = cfg.weighting.scheme
     upd_every = int(cfg.weighting.update_every_steps)
-    for it in range(int(cfg.training.max_steps)):
+    # Colab 진행바: % 완료 + 경과/예상남은시간(ETA) 표시 (loss 메트릭은 wandb에서)
+    pbar = tqdm(range(int(cfg.training.max_steps)), desc=f"seed{seed}",
+                ncols=90, mininterval=1.0)
+    for it in pbar:
         if scheme != "uniform" and it > 0 and it % upd_every == 0:
             weights = update_weights(pinn.loss_terms, params, scheme, weights,
                                      float(cfg.weighting.momentum))
