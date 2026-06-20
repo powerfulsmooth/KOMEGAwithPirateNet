@@ -129,6 +129,7 @@ def get_config():
     config.saving.checkpoint_dir = f"{config.saving.base_dir}/checkpoints"
     config.saving.figs_dir = f"{config.saving.base_dir}/figs"
     config.saving.save_every_steps = 5000
+    config.saving.contour_every_steps = 500   # 학습 중 |U| 등고선 스냅샷 주기(0이면 끔)
 
     # ⚠️ [주의] train.py는 같은 이름의 .pkl(예: mlp_seed0.pkl)이 이미 있으면 그 seed를 건너뜁니다.
     #   따라서 max_steps(학습 길이)나 seed 수를 바꿔 "다시 제대로" 학습할 때는 반드시

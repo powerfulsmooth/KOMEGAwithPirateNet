@@ -152,6 +152,39 @@ def make_optimizer(cfg):
     return optax.adam(sched)
 
 
+def save_contour_png(cfg, net, params, arch, seed, step):
+    """현재 파라미터로 |U|(speed) 등고선을 그려 figs/progress 에 PNG로 저장.
+
+    CFD에서 iter마다 contour 보듯, 학습 중 흐름장이 발전하는 걸 보기 위한 스냅샷.
+    모니터링이 학습을 죽이면 안 되므로 어떤 에러든 삼키고 None을 반환한다.
+    반환: 저장된 경로 (실패 시 None)."""
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        from postprocess import fields
+
+        def predict_fn(xy):
+            xy = jnp.asarray(xy)
+            return np.asarray(jax.vmap(lambda pt: net.apply(params, pt))(xy))
+
+        fl = fields.evaluate(predict_fn, cfg)
+        outdir = os.path.join(cfg.saving.figs_dir, "progress")
+        os.makedirs(outdir, exist_ok=True)
+        fig, ax = plt.subplots(figsize=(9, 2.8))
+        pc = ax.contourf(fl["X"], fl["Y"], fl["speed"], levels=30, cmap="viridis")
+        ax.set_aspect("equal"); ax.set_xlabel("x/h"); ax.set_ylabel("y/h")
+        ax.set_title(f"{arch} |U|  seed{seed}  step {step}")
+        fig.colorbar(pc, ax=ax, shrink=0.9)
+        path = os.path.join(outdir, f"{arch}_seed{seed}_step{step:06d}.png")
+        fig.savefig(path, dpi=130, bbox_inches="tight")
+        plt.close(fig)
+        return path
+    except Exception as e:
+        print(f"  [contour] step {step} 스냅샷 실패(학습은 계속): {e}")
+        return None
+
+
 def train_one_seed(cfg, seed, points, log_fn=None):
     key = jax.random.PRNGKey(int(seed))
     net = networks.build_network(cfg)
@@ -160,6 +193,8 @@ def train_one_seed(cfg, seed, points, log_fn=None):
     opt = make_optimizer(cfg)
     opt_state = opt.init(params)
     weights = {k: jnp.asarray(float(cfg.weighting.init_weights[k])) for k in LOSS_KEYS}
+    arch = cfg.wandb.name or cfg.arch.arch_name
+    contour_every = int(cfg.saving.get("contour_every_steps", 0) or 0)
 
     @jax.jit
     def step(params, opt_state, weights):
@@ -182,8 +217,11 @@ def train_one_seed(cfg, seed, points, log_fn=None):
             rec.update({f"loss/{k}": float(terms[k]) for k in LOSS_KEYS})
             rec.update({f"w/{k}": float(weights[k]) for k in LOSS_KEYS})
             history.append(rec)
+            img_path = None
+            if contour_every and it % contour_every == 0:
+                img_path = save_contour_png(cfg, net, params, arch, seed, it)
             if log_fn:
-                log_fn(rec)
+                log_fn(rec, img_path)
     return params, history
 
 
@@ -227,9 +265,12 @@ def main(argv):
                        tags=list(cfg.wandb.tags), reinit=True,
                        config=cfg.to_dict())
 
-        def log_fn(rec):
+        def log_fn(rec, img_path=None):
             if use_wandb:
-                wandb.log(rec)
+                data = dict(rec)
+                if img_path:
+                    data["contour"] = wandb.Image(img_path)
+                wandb.log(data)
 
         print(f"--> [seed {seed}] 학습을 시작합니다...")
         params, history = train_one_seed(cfg, seed, points, log_fn=log_fn)
