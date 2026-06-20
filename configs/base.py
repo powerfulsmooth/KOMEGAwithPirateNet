@@ -74,7 +74,7 @@ def get_config():
 
     # ---- training ----
     config.training = ml_collections.ConfigDict()
-    config.training.max_steps = 1000
+    config.training.max_steps = 30000
     config.training.batch_size = 2000
 
     # ---- loss weighting: uniform | grad_norm | ntk  (+ optional RBA) ----
@@ -92,7 +92,7 @@ def get_config():
 
     # ---- run / seeds (init-sensitivity study) ----
     config.run = ml_collections.ConfigDict()
-    config.run.n_seeds = 1                   # Pioch reinit count
+    config.run.n_seeds = 10                  # Pioch reinit count (seed 0~9)
     config.run.seed = 0
     config.run.select_best_by = "nmse"
 
