@@ -226,7 +226,7 @@ def main(argv):
         print(f"⚠️ 분포도(metric_distribution) 생성 실패 (데이터가 부족할 수 있음): {e}")
 
     try:
-        plots_done.append(compare.reatattachment_bar(results, os.path.join(figdir, "reattach.png")))
+        plots_done.append(compare.reattachment_bar(results, os.path.join(figdir, "reattach.png")))
     except Exception as e:
         print(f"⚠️ 재부착 길이 바 차트(reattachment_bar) 생성 실패: {e}")
 

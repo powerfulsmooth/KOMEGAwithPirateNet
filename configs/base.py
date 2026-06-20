@@ -130,6 +130,13 @@ def get_config():
     config.saving.figs_dir = f"{config.saving.base_dir}/figs"
     config.saving.save_every_steps = 5000
 
+    # ⚠️ [주의] train.py는 같은 이름의 .pkl(예: mlp_seed0.pkl)이 이미 있으면 그 seed를 건너뜁니다.
+    #   따라서 max_steps(학습 길이)나 seed 수를 바꿔 "다시 제대로" 학습할 때는 반드시
+    #   위 checkpoints 폴더의 옛 .pkl을 비우세요. 안 그러면 후처리가 옛 모델을 평가합니다.
+    #   여러 학습 길이를 섞어 비교하려면 아래 2줄 주석을 풀어 스텝별로 폴더를 분리하세요:
+    # config.saving.checkpoint_dir = f"{config.saving.base_dir}/checkpoints/s{config.training.max_steps}"
+    # config.saving.figs_dir = f"{config.saving.base_dir}/figs/s{config.training.max_steps}"
+
     return config
 
 
