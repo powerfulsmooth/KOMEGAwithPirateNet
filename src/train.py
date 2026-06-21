@@ -250,6 +250,9 @@ def train_one_seed(cfg, seed, points, log_fn=None):
     key = jax.random.PRNGKey(int(seed))
     net = networks.build_network(cfg)
     params = networks.init_params(net, key)
+    # PirateNet: physics-informed init of the final layer (u,v least-squares on DNS data)
+    if str(cfg.arch.arch_name) == "PirateNet" and bool(cfg.arch.get("pi_init", False)):
+        params = networks.pi_init(net, params, points)
     pinn = model_mod.KOmegaPINN(cfg, net, points)
     opt = make_optimizer(cfg)
     opt_state = opt.init(params)

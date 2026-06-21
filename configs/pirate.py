@@ -10,7 +10,7 @@ def get_config():
     config.arch.hidden_dim = 256
     config.arch.activation = "tanh"
     config.arch.fourier_emb = ml_collections.ConfigDict(
-        {"embed_scale": 1.0, "embed_dim": 256}
+        {"embed_scale": 10.0, "embed_dim": 256}   # jaxpi BFS 권장값 (정규화 좌표 기준)
     )
     config.arch.nonlinearity = 0.0    # PirateNet adaptive-residual alpha init (= 0 -> identity)
     config.arch.pi_init = True        # physics-informed init (least-squares final layer)
